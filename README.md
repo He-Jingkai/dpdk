@@ -5,7 +5,7 @@
 ### Q1: What's the purpose of using hugepage?
 (1) 在使用内存范围一定的条件下减少需要的page table entry, 减少TLB miss rate;
 
-(2) 减少页表级数，提高page table查询效率;
+(2) 减少页表级数，降低查表过程中访问内存的次数, 提高page table查询效率;
 
 (3) 发生一次page fault分配更多内存, 从而减少page fault的次数;
 
