@@ -152,19 +152,15 @@ int main(int argc, char *argv[]) {
   struct rte_mempool *mbuf_pool;
   unsigned nb_ports;
   uint16_t portid;
-
   /* Initialize the Environment Abstraction Layer (EAL). */
   int ret = rte_eal_init(argc, argv);
   if (ret < 0) rte_exit(EXIT_FAILURE, "Error with EAL initialization\n");
-
   argc -= ret;
   argv += ret;
-
   /* Creates a new mempool in memory to hold the mbufs. */
   mbuf_pool =
       rte_pktmbuf_pool_create("MBUF_POOL", NUM_MBUFS, MBUF_CACHE_SIZE, 0,
                               RTE_MBUF_DEFAULT_BUF_SIZE, rte_socket_id());
-
   /* Initialize all ports. */
   if (port_init(0, mbuf_pool) != 0)
     rte_exit(EXIT_FAILURE, "Cannot init port %" PRIu16 "\n", portid);

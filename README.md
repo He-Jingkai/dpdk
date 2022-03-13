@@ -1,5 +1,7 @@
 # dpdk
 
+## Part1
+
 ### Q1: What's the purpose of using hugepage?
 (1) 在使用内存范围一定的条件下减少需要的page table entry, 减少TLB miss rate;
 
@@ -76,31 +78,113 @@ The number of output packets actually stored in transmit descriptors of the tran
 
 ### Q4:  Describe the data structure of 'rte_mbuf'.
 
-````
-void rte_pktmbuf_init(struct rte_mempool *mp, __rte_unused void *opaque_arg, void *_m, __rte_unused unsigned i) {
-  struct rte_mbuf *m = _m;
-  uint32_t mbuf_size, buf_len, priv_size;
+ - rte_mbuf有priv_size, buf_addr,  buf_len, type, buf_len等字段用于描述ret_mbuf的元数据(如包的长度, 还有包的type和所属端口等常量)
+ - 在结构上, rte_mbuf首先是header_room, 之后是data_room, 最后还有tail_room以备扩展
+ - buf_addr指向header_room的起始
+ - data_off表示data_room段距离包起始地址的offset,使用buf_addr+data_off可以得到data段的起始地址
+ - 整个包的长度为buf_len, 为header_room, data_room和tail_room的长度和
 
-  priv_size = rte_pktmbuf_priv_size(mp);
-  mbuf_size = sizeof(struct rte_mbuf) + priv_size;
-  buf_len = rte_pktmbuf_data_room_size(mp);
+## Part2
 
-  memset(m, 0, mbuf_size);
-  /* start of buffer is after mbuf structure and priv data */
-  m->priv_size = priv_size;
-  m->buf_addr = (char *)m + mbuf_size;
-  m->buf_iova = rte_mempool_virt2iova(m) + mbuf_size;
-  m->buf_len = (uint16_t)buf_len;
+### 截图:
+![](pic/sc-1.png)
+"hello from vm"为UDP包的内容
 
-  /* keep some headroom between start of buffer and data */
-  m->data_off = RTE_MIN(RTE_PKTMBUF_HEADROOM, (uint16_t)m->buf_len);
+### 实现细节:
 
-  /* init some constant fields */
-  m->pool = mp;
-  m->nb_segs = 1;
-  m->port = RTE_MBUF_PORT_INVALID;
-  rte_mbuf_refcnt_set(m, 1);
-  m->next = NULL;
+在main函数中首先初始化EAL和0号端口(之后使用0号端口发送UDP包), 并为0号端口初始化mempool, 之后调用````lcore_main````函数发送包, ````port_init````复用了````dpdk/examples/skeleton/basicfwd.c````中的````port_init````函数.
+
+````c
+int main(int argc, char *argv[]) {
+  struct rte_mempool *mbuf_pool;
+  unsigned nb_ports;
+  uint16_t portid;
+  /* Initialize the Environment Abstraction Layer (EAL). */
+  int ret = rte_eal_init(argc, argv);
+  if (ret < 0) rte_exit(EXIT_FAILURE, "Error with EAL initialization\n");
+  argc -= ret;
+  argv += ret;
+  /* Creates a new mempool in memory to hold the mbufs. */
+  mbuf_pool =
+      rte_pktmbuf_pool_create("MBUF_POOL", NUM_MBUFS, MBUF_CACHE_SIZE, 0, RTE_MBUF_DEFAULT_BUF_SIZE, rte_socket_id());
+  /* Initialize all ports. */
+  if (port_init(0, mbuf_pool) != 0)
+    rte_exit(EXIT_FAILURE, "Cannot init port %" PRIu16 "\n", portid);
+
+  lcore_main(mbuf_pool);
+
+  return 0;
 }
 ````
- - rte_mbuf有priv_size, buf_addr, buf_iova, buf_len等
+
+````lcore_main````中填写````BURST_SIZE````个包并使用````rte_pktmbuf_free````函数发送, 其中每个包有三层包头(分别为````ethernet header````, ````ipv4 header````, ````udp header````), 包中data段填写的内容为````hello from vm````.
+
+````c
+void lcore_main(struct rte_mempool *mbuf_pool) {
+  struct rte_mbuf *bufs[BURST_SIZE];
+  int ether_hdr_len = sizeof(struct rte_ether_hdr);
+  int ipv4_hdr_len = sizeof(struct rte_ipv4_hdr);
+  int udp_hdr_len = sizeof(struct rte_udp_hdr);
+  for (int i = 0; i < BURST_SIZE; i++) {
+    bufs[i] = rte_pktmbuf_alloc(mbuf_pool);
+    struct rte_ether_hdr *ether_hdr =
+        rte_pktmbuf_mtod(bufs[i], struct rte_ether_hdr *);
+    struct rte_ipv4_hdr *ipv4_hdr =
+        (struct rte_ipv4_hdr *)(rte_pktmbuf_mtod(bufs[i], char *) +ether_hdr_len);
+    struct rte_udp_hdr *udp_hdr =
+        (struct rte_udp_hdr *)(rte_pktmbuf_mtod(bufs[i], char *) +
+ether_hdr_len + ipv4_hdr_len);
+    char *data = (char *)(rte_pktmbuf_mtod(bufs[i], char *) + ether_hdr_len + ipv4_hdr_len + udp_hdr_len);
+
+    struct rte_ether_addr s_addr = {{0x0c, 0x29, 0x6e, 0x15, 0xa9, 0x08}};
+    struct rte_ether_addr d_addr = {{0x00, 0x50, 0xc0, 0x00, 0x02, 0x00}};
+    ether_hdr->d_addr = d_addr;
+    ether_hdr->s_addr = s_addr;
+    ether_hdr->ether_type = 0x0008;
+
+    ipv4_hdr->version_ihl = RTE_IPV4_VHL_DEF;
+    ipv4_hdr->type_of_service = RTE_IPV4_HDR_DSCP_MASK;
+    ipv4_hdr->total_length = 0x2000;
+    ipv4_hdr->packet_id = 0;
+    ipv4_hdr->fragment_offset = 0;
+    ipv4_hdr->time_to_live = 100;
+    ipv4_hdr->src_addr = 0xB837A8C0;
+    ipv4_hdr->next_proto_id = 17;
+    ipv4_hdr->dst_addr = 0x8A8C0;
+    ipv4_hdr->hdr_checksum = rte_ipv4_cksum(ipv4_hdr);
+
+    udp_hdr->src_port = 8080;
+    udp_hdr->dst_port = 8080;
+    udp_hdr->dgram_len = 0x0c00;
+    udp_hdr->dgram_cksum = 1;
+
+    *data = 'h';
+    *(data + 1) = 'e';
+    *(data + 2) = 'l';
+    *(data + 3) = 'l';
+    *(data + 4) = 'o';
+    *(data + 5) = ' ';
+    *(data + 6) = 'f';
+    *(data + 7) = 'r';
+    *(data + 8) = 'o';
+    *(data + 9) = 'm';
+    *(data + 10) = ' ';
+    *(data + 11) = 'v';
+    *(data + 12) = 'm';
+    bufs[i]->pkt_len = bufs[i]->data_len =
+        ether_hdr_len + ipv4_hdr_len + udp_hdr_len + 13;
+  }
+  uint16_t nb_tx = rte_eth_tx_burst(0, 0, bufs, BURST_SIZE);
+  printf("%d packets sent successfully", BURST_SIZE);
+
+  for (int i = 0; i < BURST_SIZE; i++) rte_pktmbuf_free(bufs[i]);
+}
+````
+
+### 运行
+````sh
+$ make
+$ ./build/udp
+# 如果遇到形如`cannot open shared object file: No such file or directory`的错误可以使用如下指令
+$ sudo ldconfig
+````
