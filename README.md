@@ -88,7 +88,10 @@ The number of output packets actually stored in transmit descriptors of the tran
 
 ### 截图:
 ![](pic/sc-1.png)
-"hello from vm"为UDP包的内容
+
+
+ - "hello from vm"为UDP包的内容
+ - 根据截图, 发包类型正确(UDP), UDP包的内容"hello from vm"与程序中发送的内容一致, 其src和dst与程序中发送的内容一致`src:192.168.55.184(0xB837A8C0), dst:192.168.8.0(0x8A8C0)`, ether_addr的src和dst也与程序中填充的一致(截图中包的0-5字节和6-11字节), 因此编写的UDP发包程序正确
 
 ### 实现细节:
 
