@@ -93,10 +93,23 @@ void lcore_main(struct rte_mempool *mbuf_pool) {
   int udp_hdr_len = sizeof(struct rte_udp_hdr);
   for (int i = 0; i < BURST_SIZE; i++) {
     bufs[i] = rte_pktmbuf_alloc(mbuf_pool);
+<<<<<<< HEAD
     struct rte_ether_hdr* ether_hdr = rte_pktmbuf_mtod(bufs[i], struct rte_ether_hdr *);
 	struct rte_ipv4_hdr* ipv4_hdr = (struct rte_ipv4_hdr* )(rte_pktmbuf_mtod(bufs[i], char *) + ether_hdr_len);
 	struct rte_udp_hdr* udp_hdr = (struct rte_udp_hdr* )(rte_pktmbuf_mtod(bufs[i], char *) + ether_hdr_len + ipv4_hdr_len);
 	char* data = (char* )(rte_pktmbuf_mtod(bufs[i], char *) + ether_hdr_len + ipv4_hdr_len+udp_hdr_len);
+=======
+    struct rte_ether_hdr *ether_hdr =
+        rte_pktmbuf_mtod(bufs[i], struct rte_ether_hdr *);
+    struct rte_ipv4_hdr *ipv4_hdr =
+        (struct rte_ipv4_hdr *)(rte_pktmbuf_mtod(bufs[i], char *) +
+                                ether_hdr_len);
+    struct rte_udp_hdr *udp_hdr =
+        (struct rte_udp_hdr *)(rte_pktmbuf_mtod(bufs[i], char *) +
+                               ether_hdr_len + ipv4_hdr_len);
+    char *data = (char *)(rte_pktmbuf_mtod(bufs[i], char *) + ether_hdr_len +
+                          ipv4_hdr_len + udp_hdr_len);
+>>>>>>> 4ade0a126698fb30ae62bc5fbecae20f8f80d443
 
     struct rte_ether_addr s_addr = {{0x0c, 0x29, 0x6e, 0x15, 0xa9, 0x08}};
     struct rte_ether_addr d_addr = {{0x00, 0x50, 0xc0, 0x00, 0x02, 0x00}};
@@ -121,6 +134,7 @@ void lcore_main(struct rte_mempool *mbuf_pool) {
     udp_hdr->dgram_cksum = 1;
 
     *data = 'h';
+<<<<<<< HEAD
     *(data+1) = 'e';
     *(data+2) = 'l';
     *(data+3) = 'l';
@@ -164,12 +178,52 @@ main(int argc, char *argv[])
       "MBUF_POOL", NUM_MBUFS, MBUF_CACHE_SIZE, 0,
       RTE_MBUF_DEFAULT_BUF_SIZE, rte_socket_id());
 
+=======
+    *(data + 1) = 'e';
+    *(data + 2) = 'l';
+    *(data + 3) = 'l';
+    *(data + 4) = 'o';
+    *(data + 5) = ' ';
+    *(data + 6) = 'f';
+    *(data + 7) = 'r';
+    *(data + 8) = 'o';
+    *(data + 9) = 'm';
+    *(data + 10) = ' ';
+    *(data + 11) = 'v';
+    *(data + 12) = 'm';
+    bufs[i]->pkt_len = bufs[i]->data_len =
+        ether_hdr_len + ipv4_hdr_len + udp_hdr_len + 13;
+  }
+  uint16_t nb_tx = rte_eth_tx_burst(0, 0, bufs, BURST_SIZE);
+  printf("%d packets sent successfully", BURST_SIZE);
+
+  for (int i = 0; i < BURST_SIZE; i++) rte_pktmbuf_free(bufs[i]);
+}
+
+int main(int argc, char *argv[]) {
+  struct rte_mempool *mbuf_pool;
+  unsigned nb_ports;
+  uint16_t portid;
+  /* Initialize the Environment Abstraction Layer (EAL). */
+  int ret = rte_eal_init(argc, argv);
+  if (ret < 0) rte_exit(EXIT_FAILURE, "Error with EAL initialization\n");
+  argc -= ret;
+  argv += ret;
+  /* Creates a new mempool in memory to hold the mbufs. */
+  mbuf_pool =
+      rte_pktmbuf_pool_create("MBUF_POOL", NUM_MBUFS, MBUF_CACHE_SIZE, 0,
+                              RTE_MBUF_DEFAULT_BUF_SIZE, rte_socket_id());
+>>>>>>> 4ade0a126698fb30ae62bc5fbecae20f8f80d443
   /* Initialize all ports. */
   if (port_init(0, mbuf_pool) != 0)
     rte_exit(EXIT_FAILURE, "Cannot init port %" PRIu16 "\n", portid);
 
   lcore_main(mbuf_pool);
 
+<<<<<<< HEAD
 	
 	return 0;
+=======
+  return 0;
+>>>>>>> 4ade0a126698fb30ae62bc5fbecae20f8f80d443
 }
