@@ -1,6 +1,5 @@
 # dpdk
 
-<<<<<<< HEAD
 ### Q1: What's the purpose of using hugepage?
 (1) 在使用内存范围一定的条件下减少需要的page table entry, 减少TLB miss rate;
 
@@ -12,7 +11,6 @@
 (1) 在使用内存范围一定的条件下减少需要的page table entry, 减少TLB miss rate;
 
 (2) 减少页表级数，降低查表过程中访问内存的次数, 提高page table查询效率;
->>>>>>> 4ade0a126698fb30ae62bc5fbecae20f8f80d443
 
 (3) 发生一次page fault分配更多内存, 从而减少page fault的次数;
 
@@ -85,7 +83,6 @@ The number of output packets actually stored in transmit descriptors of the tran
 
 ### Q4:  Describe the data structure of 'rte_mbuf'.
 
-<<<<<<< HEAD
 ````
 void rte_pktmbuf_init(struct rte_mempool *mp, __rte_unused void *opaque_arg, void *_m, __rte_unused unsigned i) {
   struct rte_mbuf *m = _m;
@@ -228,4 +225,3 @@ $ ./build/udp
 # 如果遇到形如`cannot open shared object file: No such file or directory`的错误可以使用如下指令
 $ sudo ldconfig
 ````
->>>>>>> 4ade0a126698fb30ae62bc5fbecae20f8f80d443
